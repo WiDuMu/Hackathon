@@ -1,18 +1,187 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <title>Hello, world!</title>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description" content="" />
-  <script src="./api.js"></script>
-</head>
-<body>
-  <h1>Hello, world!</h1>
-  <label for="username" >Username</label><input id="username" name="username" type="text"><br>
-  <label for="password">Password</label><input id="password" name="password" type="password"><br>
-  <label for="account">Account</label><input type="text" id="accountNumber">
-  <button onclick="main()">Start</button>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+<style>
+  body {
+  	text-align: center;
+    font-family: "Helvetica Neue", Helvetica, sans-serif;
+    
+  }
+</style>
+<h1>Welcome to BudgetBits</h1>
+<button class="btn-primary" data-bs-toggle="collapse" data-bs-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">Create Goal</button>
+<div class="collapse" id="collapseExample">
+  <div class="card card-body">
+    <label for="goalName">Name:</label><input name="goalName" id="goalNameInput" type="text"> 
+    <label for=goalType>Goal Type</label>
+    <select class="form-select" id="goalTypeInput" name="goalType">
+      <option selected value="1">Savings</option>
+      <option value="2">Debt</option>
+      <option value="3">School Progress</option>
+    </select>
+    <label for="goalAmount">Amount:</label><input name="goalAmount" id="goalAmountInput" type="number">
+    <label for="goalDate">Date:</label><input name="goalDate" id="goalDateInput" type="date">
+    <button onclick="createGoal()">Submit</button>
+  </div>
+</div>
+<div style="display: flex; justify-content: space-around; flex-direction: row-reverse;">
+  <div style="display: flex; flex-direction: column; float: right; gap: 3px;">
+  <h2> Badges </h2>
+  <div id=badges>
+    <img src="https://github.com/WiDuMu/Hackathon/raw/main/Graduation.png" width=100 height=100>
+    <img id="firstGoalBadge" src="https://github.com/WiDuMu/Hackathon/raw/main/Token.png" width=100 height=100 hidden> <!--Badge that is revealed on the first goal being created.-->
+  </div>
+  </div>
+<div style="display: flex; flex-direction: column; float: center; gap: 3px;">
+<div class="card" style="width: 24rem;">
+  Your balance: <b>$<span id="balance"></span></b> Your Debt: <b>$<span id=totalDebt></span></b>
+</div>
+ <div id="goals">
+<div class="card" id="goalTemplate" style="width: 24rem;" hidden>
+  <span id="goal0"></span>
+  <div class="progress">
+  <div class="progress-bar" role="progressbar" id="goalProgressBar" style="width: 10%" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+</div>
+</div>
+  </div>
+  <button hidden class="btn-primary" onclick="changeProgressBar(50)">Add progress</button>
+  <div id="accounts">
+  <div class="accordion" id="accountTemplate" hidden>
+  <div class="accordion-item" style="width : 24rem">
+    <h2 class="accordion-header" id="headingOne">
+      <button class="accordion-button account-name" type="button" data-bs-toggle="collapse" data-bs-target=".collapseOne" aria-expanded="true" aria-controls="collapseOne">
+        Accounts
+      </button>
+    </h2>
+    <div class="collapseOne accordion-collapse collapse balance" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+	Account Balance:
 
-</body>
-</html>
+
+    </div>
+
+    
+
+<script>
+  async function requestFromUSBankAPI(extenstion, account, username, password) {
+        const apiURL = 'https://alpha-api.usbank.com/innovation/bank-node/customer-accounts/v1/customer/';
+        const requestURL = `${apiURL}${account}${extenstion}`;
+        const myInit = {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                        'Access-Control-Allow-Origin': 'https://alpha-api.usbank.com/',
+                        'Authorization': 'Basic ' + btoa(`${username}:${password}`),
+                },
+                mode: 'cors',
+              };
+        let request = new Request(requestURL, myInit);
+        fetch(request)
+         .then((response) => response.json())
+         .then((data) => {
+          let balance = 0;
+          let debt = 0;
+          const totalBalanceElement = document.getElementById('balance');
+          const totalDebtElement = document.getElementById('totalDebt');
+          const accountList = document.getElementById('accounts');
+          const accountTemplate = document.getElementById('accountTemplate');
+          console.log(data);
+          for (account of data.accounts) {
+            const newAccount = accountTemplate.cloneNode(true);
+            const accountName = newAccount.querySelector('.account-name')
+            accountName.setAttribute('data-bs-target', `#account${account.accountID}`)
+            const balanceField = newAccount.querySelector('.balance')
+            balanceField.id = 'account'+account.accountID
+            if (account['nickname'] == undefined) {
+              accountName.textContent = `${account['description']}: ${account.accountID}`;
+            }
+            else {
+              accountName.textContent = account['nickname']
+            }
+            switch(account['accountType']) {
+              case 'CCD':
+              case 'BCD': 
+                debt += account.currentBalance;
+                balanceField.textContent = `Owed: ${account.currentBalance} Available credit: ${account.availableCredit}`
+              break;
+              case 'SAV':
+              case 'DDA': 
+                balance += account.availableBalance;
+                balanceField.textContent = `Balance: ${account.availableBalance}`
+              break;
+            }
+            newAccount.hidden = false;
+            accountList.appendChild(newAccount);
+            totalBalanceElement.textContent = balance;
+            totalDebtElement.textContent = debt;
+          	console.log({account,debt,balance})
+          }
+          //return(data);
+                       });
+  }
+  function returnText() { // Original function
+    let goalName2 = document.getElementById('goalNameInput').value
+		const goalNameInput = document.getElementById('goalNameInput')
+    const goals = document.getElementById('goals')
+    const goalTemplate = document.getElementById('goalTemplate')
+    const newGoal = goalTemplate.cloneNode(true)
+    const goalName = newGoal.firstChild
+    goalName.textContent = `Goal #${goals.children.length}`
+    newGoal.hidden = false
+    goals.appendChild(newGoal)
+  }
+  function createGoal() {
+    //finding elements on the page to refrence later
+    const goalNameInput = document.getElementById('goalNameInput')
+    const goals = document.getElementById('goals')
+    const goalTemplate = document.getElementById('goalTemplate')
+    const GoalTypeInput = document.getElementById('goalType')
+    let goalBadge = document.getElementById('firstGoalBadge')
+    //copying the template of the goal
+    const newGoal = goalTemplate.cloneNode(true)
+    const goalName = newGoal.firstChild
+    //setting it's name to be the value inside the name input
+    goalName.textContent = `$${goalAmountInput.value} for ${goalNameInput.value} by ${goalDateInput.value}`
+    switch (goalTypeInput.value) {
+      case '1': 
+        newGoal.style.color = 'blue';
+        break;
+      case '2':
+        newGoal.style.color = 'red';
+      	break;
+      case '3': 
+        newGoal.style.color = 'green';
+        break;
+      default:
+        console.log('This should never happen');
+        break;
+    }
+    if (goalBadge.hidden == true){
+      goalBadge.hidden = false;
+    }
+    //reveal the goal
+    newGoal.hidden = false
+    //add it to the section of goals.
+    goals.appendChild(newGoal)
+  } 
+  
+  function addBadge(badgeURL, badgeName) {
+    const badgesDiv = document.getElementById('badges')
+    const newImage = document.createElement(img)
+    img.id = badgeName
+    img.setAttribute('width', 100)
+    img.setAttribute('height', 100)
+    img.setAttribute('src',badgeURL)
+    badgesDiv.appendChild(newImage)
+  }
+  function changeProgressBar(value) {
+    const bar = document.getElementById('goalProgressBar');
+    const currentProgress = parseInt(bar.getAttribute('aria-valuenow'));
+    const newProgress = value;
+    bar.setAttribute('aria-valuenow', newProgress);
+    bar.style = `width: ${newProgress}%`
+  }
+  async function fillData() {
+    const accountData = await requestFromUSBankAPI('/accounts', 6785740439, 'KTMCG48wVMPVzupT5vUdOqiKzmAEU3gF', 'GGhXVJRhbOsfT1ph')
+  }
+  fillData()
+</script>
+
